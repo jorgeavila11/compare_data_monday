@@ -19,33 +19,35 @@ function DateComparisonChart() {
     // Obtém e monitora o contexto do Monday.com - CORREÇÃO AQUI
     useEffect(() => {
         const fetchBoardId = async () => {
-        try {
-            // Obtém o contexto inicial do board
-            const context = await monday.get("context");
-            const initialBoardId = context.data.boardIds?.[0];
-            if (initialBoardId) {
-                setBoardId(initialBoardId);
-                console.log("Initial Board ID:", initialBoardId);
+            try {
+
+                // Obtém o contexto inicial do board
+                monday.get("context").then(res => {
+                    const boardId = res.data.boardIds[0];
+                    console.log("Board ID:", boardId);
+                });
+
+                // Tenta recuperar do storage primeiro
+                // const res = await monday.storage.getItem("selectedBoardId");
+                // if (res?.data?.value) {
+                //     setBoardId(res.data.value);
+                // }
+
+                // Configura listener para mudanças de contexto
+                monday.listen("context", (res) => {
+                    if (res?.data?.boardId) {
+                        setBoardId(res.data.boardId);
+                        monday.storage.setItem("selectedBoardId", res.data.boardId);
+                    }
+                });
+            } catch (err) {
+                console.error("Error getting context:", err);
+                setError("Erro ao obter contexto do board");
             }
+        };
 
-            // Configura listener para mudanças de contexto
-            monday.listen("context", (res) => {
-                // Corrigido: usar res.data.boardIds em vez de newBoardId
-                const updatedBoardId = res.data.boardIds?.[0];
-                if (updatedBoardId) {
-                    setBoardId(updatedBoardId);
-                    monday.storage.setItem("selectedBoardId", updatedBoardId);
-                    console.log("Board ID atualizado via listener:", updatedBoardId);
-                }
-            });
-        } catch (err) {
-            console.error("Error getting context:", err);
-            setError("Erro ao obter contexto do board");
-        }
-    };
-
-    fetchBoardId();
-}, []);
+        fetchBoardId();
+    }, []);
 
     // Busca as colunas de data do board e recupera seleções salvas
     useEffect(() => {

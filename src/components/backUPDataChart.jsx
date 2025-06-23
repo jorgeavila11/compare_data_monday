@@ -16,51 +16,41 @@ function DateComparisonChart() {
     const [selectedColumns, setSelectedColumns] = useState([]);
     const [menuOpen, setMenuOpen] = useState(false);
 
-    // Obtém e monitora o contexto do Monday.com - CORREÇÃO AQUI
+    // Obtém e monitora o contexto do Monday.com
     useEffect(() => {
-        const fetchBoardId = async () => {
-        try {
-            // Obtém o contexto inicial do board
-            const context = await monday.get("context");
-            const initialBoardId = context.data.boardIds?.[0];
-            if (initialBoardId) {
-                setBoardId(initialBoardId);
-                console.log("Initial Board ID:", initialBoardId);
+        const initializeApp = async () => {
+            try {
+                // Obtém o contexto inicial do board
+                monday.get("context").then(res => {
+                    const boardId = res.data.boardIds[0];
+                    console.log("Board ID:", boardId);
+                });
+
+                // Configura listener para mudanças de contexto
+                monday.listen("context", (res) => {
+                    console.log("Mudança de contexto detectada:", res);
+                    if (res?.data?.boardId) {
+                        const newBoardId = res.data.boardId;
+                        setBoardId(newBoardId);
+                        console.log("Board ID atualizado via listener:", newBoardId);
+                    }
+                });
+
+            } catch (err) {
+                console.error("Erro ao obter contexto:", err);
+                setError("Erro ao obter contexto do board: " + err.message);
             }
+        };
 
-            // Configura listener para mudanças de contexto
-            monday.listen("context", (res) => {
-                // Corrigido: usar res.data.boardIds em vez de newBoardId
-                const updatedBoardId = res.data.boardIds?.[0];
-                if (updatedBoardId) {
-                    setBoardId(updatedBoardId);
-                    monday.storage.setItem("selectedBoardId", updatedBoardId);
-                    console.log("Board ID atualizado via listener:", updatedBoardId);
-                }
-            });
-        } catch (err) {
-            console.error("Error getting context:", err);
-            setError("Erro ao obter contexto do board");
-        }
-    };
+        initializeApp();
+    }, []);
 
-    fetchBoardId();
-}, []);
-
-    // Busca as colunas de data do board e recupera seleções salvas
+    // Busca as colunas de data do board
     useEffect(() => {
         if (!boardId) return;
 
         const fetchDateColumns = async () => {
             try {
-                // Tenta recuperar as colunas selecionadas do storage
-                const savedColumns = await monday.storage.getItem("selectedDateColumns");
-                let initialSelectedColumns = [];
-                
-                if (savedColumns?.data?.value) {
-                    initialSelectedColumns = JSON.parse(savedColumns.data.value);
-                }
-
                 const query = `query {
                     boards(ids: [${boardId}]) {
                         columns {
@@ -87,18 +77,12 @@ function DateComparisonChart() {
                 }
 
                 setDateColumns(dateCols);
-                
-                // Verifica se as colunas salvas ainda existem no board
-                if (initialSelectedColumns.length === 2 && 
-                    dateCols.some(c => c.id === initialSelectedColumns[0]) && 
-                    dateCols.some(c => c.id === initialSelectedColumns[1])) {
-                    setSelectedColumns(initialSelectedColumns);
-                } else {
-                    setSelectedColumns([dateCols[0].id, dateCols[1].id]);
-                }
+                setSelectedColumns([dateCols[0].id, dateCols[1].id]);
+                setLoading(false);
             } catch (err) {
                 console.error("Error fetching date columns:", err);
                 setError(err.message || "Erro ao buscar colunas de data");
+                setLoading(false);
             }
         };
 
@@ -113,10 +97,7 @@ function DateComparisonChart() {
             setLoading(true);
             setError(null);
             
-            try {
-                // Salva as colunas selecionadas no storage
-                await monday.storage.setItem("selectedDateColumns", JSON.stringify(selectedColumns));
-                
+            try {                
                 const query = `query {
                     boards(ids: [${boardId}]) {
                         items_page {
@@ -377,6 +358,7 @@ function DateComparisonChart() {
                 <h4>Erro ao carregar o gráfico</h4>
                 <p>{error}</p>
                 <p>Board ID: {boardId || 'não disponível'}</p>
+                <p>Verifique se você está visualizando este app dentro de um board no Monday.com</p>
             </div>
         );
     }
