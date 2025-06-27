@@ -254,7 +254,7 @@ function DateComparisonChart() {
 
         const option = {
             title: {
-                text: `Compare Datas`,                
+                                
                 left: 'center',
                 textStyle: {
                     fontSize: 16,
